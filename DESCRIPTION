@@ -19,7 +19,11 @@ Suggests:
     knitr,
     lattice,
     rmarkdown,
-    testthat (>= 0.8.0)
+    testthat (>= 0.8.0),
+    tidyverse,
+    paletteer,
+    readr,
+    here
 LinkingTo: 
     Rcpp
 Encoding: UTF-8
