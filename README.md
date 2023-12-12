@@ -5,6 +5,24 @@
 [![Codecov test coverage](https://codecov.io/gh/hadley/reshape/branch/master/graph/badge.svg)](https://codecov.io/gh/hadley/reshape?branch=master)
 <!-- badges: end -->
 
+## Assignment Info
+
+Link to original github repo of the `reshape2` package: https://github.com/hadley/reshape/
+
+Link to deployed website: https://jhu-statprogramming-fall-2023.github.io/biostat777-project3-part1-sluan-jh/
+
+Website customizations:
+
+1. Changed website theme to flatly
+
+2. Changed code chunk theme to breeze-light
+
+3. Changed code background to color `#404040`
+
+4. Changed base font to 'Inter'
+
+5. Added footnote to the end
+
 ## Status
 
 [![Lifecycle: superseded](https://img.shields.io/badge/lifecycle-superseded-blue.svg)](https://lifecycle.r-lib.org/articles/stages.html#superseded)
