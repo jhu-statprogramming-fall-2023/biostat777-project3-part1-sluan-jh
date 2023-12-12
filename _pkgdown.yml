@@ -8,6 +8,9 @@ template:
     code-bg: "#404040"
 navbar:
   bg: primary
+  structure:
+    left:  [articles, reference, news]
+    right: [search, github]
 footer:
   structure:
     left: developed_by

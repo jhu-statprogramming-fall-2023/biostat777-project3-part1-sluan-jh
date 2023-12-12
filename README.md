@@ -23,6 +23,8 @@ Website customizations:
 
 5. Added footnote to the end
 
+6. Rearranged navigation bar order
+
 ## Status
 
 [![Lifecycle: superseded](https://img.shields.io/badge/lifecycle-superseded-blue.svg)](https://lifecycle.r-lib.org/articles/stages.html#superseded)

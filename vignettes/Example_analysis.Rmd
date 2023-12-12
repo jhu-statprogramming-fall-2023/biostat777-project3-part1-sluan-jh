@@ -65,6 +65,7 @@ breed_traits <- breed_traits %>%
 
 ## Analysis
 
+Clear unrelated columns from rank dataset
 ```{r breed rank table}
 breed_rank_all_df <- breed_rank_all %>% 
   select(!c(links,Image))
