@@ -1,0 +1,207 @@
+---
+title: "Example_analysis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Example_analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Load R Packages
+
+```{r setup}
+using.packages <- c('reshape2','tidyverse','paletteer','readr','here')
+
+mask.packages <- !using.packages %in% installed.packages()
+if (any(mask.packages)){
+  install.packages(using.packages[mask.packages],repos = "http://cran.us.r-project.org")
+}
+
+# read in required packages
+lapply(c(using.packages), require, character.only = TRUE)
+```
+
+## Data and Question
+
+In this example analysis, we are going to use the **Dog Breeds** dataset from tidytuesday. We are interested in finding out what breed of dog is most favored and what traits makes them more desirable than others. 
+
+Link to the original data: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-02-01/readme.md>
+
+Data Dictionary: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-02-01/readme.md#data-dictionary>
+
+## Load Data
+
+```{r load data}
+# tests if a directory named "data" exists locally
+if (!dir.exists(here("data"))) {
+  dir.create(here("data"))
+} 
+rda_files <- c('breed_traits.rda','breed_rank_all.rda')
+## Check whether we have all data files
+if (any(!file.exists(here("data", rda_files)))) {
+  ## If we don't, then download the data
+  breed_traits <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-01/breed_traits.csv')
+  breed_rank_all <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-02-01/breed_rank.csv')
+  
+  ## Then save the data objects to rda files
+  save(breed_traits, file = here("data", "breed_traits.rda"))
+  save(breed_rank_all, file = here("data", "breed_rank_all.rda"))
+} 
+
+load(file = here("data", "breed_traits.rda"))
+load(file = here("data", "breed_rank_all.rda"))
+
+# Fix space in breed_traits
+breed_traits <- breed_traits %>%
+  mutate(Breed = str_replace_all(Breed,'[[:space:]]',' '))
+```
+
+## Analysis
+
+```{r breed rank table}
+breed_rank_all_df <- breed_rank_all %>% 
+  select(!c(links,Image))
+breed_rank_all_df
+```
+
+Here we utilize the `melt()` function from the `reshape2` package to convert the rank dataset to long format. 
+
+```{r turn brt into long}
+long_brt <- breed_rank_all_df %>%
+  melt(id.vars = 'Breed')
+long_brt <- long_brt %>%
+  mutate(variable = str_extract(variable, '[0-9]+')) %>%
+  mutate(variable = map_dbl(variable,as.numeric)) %>%
+  rename(year = variable, rank = value)
+as_tibble(long_brt)
+```
+
+We then calculate the rank sum of from the converted rank dataset
+
+```{r rank_sum}
+rank_sum <- long_brt %>%
+  summarise(mean_rank = mean(rank), rank_sum = sum(rank),.by=Breed) %>%
+  arrange(rank_sum) 
+top10 <- head(rank_sum$Breed,n=10)
+as_tibble(rank_sum)
+```
+
+In the plot below, we visualize top 10 dogs with the smallest rank sum (top ranked) to examine how does the rank change over the years.
+
+```{r plot 1 top 10 dog rank over the year}
+color_pal <- paletteer_d("ggsci::category10_d3")
+long_brt %>% 
+  filter(Breed %in% top10) %>% 
+  mutate(Breed = fct_relevel(Breed,top10)) %>%
+  ggplot(aes(x = year, y = rank, group = Breed, fill = Breed)) +
+    geom_point(aes(color = Breed)) +
+    geom_line(aes(color = Breed)) +
+    # scale_colour_discrete()
+    scale_color_manual(values= as.character(color_pal)) + 
+    scale_y_reverse() +
+    # Adjust text style
+    labs(title = 'Top 10 Ranked Dogs Over Years',
+         subtitle = 'Most top ranked dogs maintain stable rank. A few dogs display steady trend of change',
+         caption = 'Shu Luan')
+```
+
+Most top ranked dogs are pretty stable in their ranking. However, dogs like Beagles and Yorkshire Terriers display a steady decline in ranking. French Bulldog shows the most notable ranking increase.
+
+Since we wish to work with numerical values in the trait score data, we need to find which column is not numeric. 
+
+```{r check}
+# check if the scores are all numerical values
+not_num <- names(which(!map_lgl(.x = breed_traits, .f = is.numeric)))
+not_num
+```
+
+Here we use `dcast()` function from the `reshape2` package to convert the long data back to wide form for better visualization.
+
+```{r long_brt}
+top10_trait_mean <- long_brt %>% 
+  filter(rank <= 10) %>% 
+  left_join(breed_traits, by = 'Breed') %>% 
+  group_by(year) %>%
+  select(!c(Breed,rank,`Coat Type`,`Coat Length`)) %>%
+  summarise_at(vars(`Affectionate With Family`:`Mental Stimulation Needs`), list(mean = mean)) %>% 
+  melt(id.vars ='year') %>%
+  mutate(variable = str_replace_all(variable,'_mean','')) %>% 
+  rename(Trait = variable, Mean_score = value) %>%
+  arrange(desc(Mean_score)) 
+top10_trait_mean <- top10_trait_mean %>%
+  mutate(Trait = fct_relevel(Trait, unique(top10_trait_mean$Trait)))
+as_tibble(dcast(top10_trait_mean, year~Trait)) # use dcast to convert the long data to wide format
+```
+
+Now we are interested in seeing if the mean trait scores shared by top ranked dogs change over the year. 
+
+Higher scored traits are more desirable. Lower scored traits are less desirable.
+
+```{r plot2}
+top10_trait_mean %>% ggplot(aes(fill = Trait))+
+  geom_col(aes(x=year,y=Mean_score))+
+  facet_wrap(.~Trait) +
+  xlab('Year') +
+  labs(title = 'Mean score of each trait in top 10 dogs of each year',
+       subtitle = 'Friendly traits are more welcomed while difficulties in grooming are less desirable.',
+       caption = 'Shu Luan') +
+  theme(strip.text=element_text(face='bold'),legend.position="none")
+```
+
+We can see the top four desirable traits involve friendliness within the family and the ease of keeping them as pet. We define top desirable traits as: Affectionate With Family, Good With Young Children, Trainability Level, Adaptability Level. 
+
+Conversely, we define a collection of less desirable traits with lower scores among top ranked dogs as: Shedding Level, Barking Level, Coat Grooming Frequency, and Drooling Level. These traits are associated with cleaning difficulty and possible noise concerns in the house. 
+
+Then we manipulate the data table to calculate the mean scores of the two categories for all dogs. 
+
+```{r rank_df}
+rank_df <- rank_sum %>% 
+  left_join(breed_traits,by='Breed') %>%
+  select(!c(`Coat Type`,`Coat Length`)) %>% 
+  filter(!is.na(rank_sum))
+as_tibble(rank_df)
+```
+
+```{r desirable and undesirable scores}
+rank_trait_score <- rank_df %>%
+  mutate(top_desirable = rowMeans(rank_df[,c('Affectionate With Family','Good With Young Children','Trainability Level','Adaptability Level')])) %>% 
+  mutate(less_desirable = rowMeans(rank_df[,c('Shedding Level','Coat Grooming Frequency','Drooling Level','Barking Level')])) %>%
+  mutate(log_rank_sum = log(rank_sum)) %>%
+  select(c(top_desirable,less_desirable,log_rank_sum)) %>%
+  melt(id.vars = 'log_rank_sum')
+as_tibble(rank_trait_score)
+```
+
+We can plot a scatter plot to visualize the association between the mean trait score and the log rank sum.
+
+```{r plot 3 association}
+rank_trait_score %>%
+  rename(Mean_score = value, Trait_type = variable) %>%
+  ggplot(aes(y = Mean_score, x = log_rank_sum, group = Trait_type, color = Trait_type)) +
+    geom_point() +
+    xlab('Log rank sum') +
+    ylab('Mean trait scores') + 
+    labs(title = 'Mean trait score association with log rank sum',
+       subtitle = 'Lower rank sum (top ranked) dogs have near perfect desirable trait scores, \nwhile higher rank sum dogs have more variable trait scores.',
+       caption = 'Shu Luan') 
+
+```
+
+As we can see from the plot, we can conclude that most highly ranked dogs have near perfect scores in top desirable traits while they might not have the lowest scores in less desirable traits. In summary, a favorable dog breed as house pet should at least have very friendly behaviors and should not be troublesome to groom and clean.
+
+## Functions used
+
+`tidyverse`: select, rename, filter, summarise, arrange, mutate, str_extract, str_replace
+
+`ggplot2`: geom_col, geom_point, geom_line, facet_wrap()
+
+`purr`:  map_dbl, map_lgl
+
+`reshape2`: melt, dcast

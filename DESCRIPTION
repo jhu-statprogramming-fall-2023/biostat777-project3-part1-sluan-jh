@@ -16,10 +16,13 @@ Imports:
     stringr
 Suggests: 
     covr,
+    knitr,
     lattice,
+    rmarkdown,
     testthat (>= 0.8.0)
 LinkingTo: 
     Rcpp
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.0
+VignetteBuilder: knitr

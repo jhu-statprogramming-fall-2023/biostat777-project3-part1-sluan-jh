@@ -1,0 +1,17 @@
+url: ~
+template:
+  bootstrap: 5
+  bootswatch: flatly
+  theme: breeze-light
+  bslib:
+    base_font: {google: "Inter"}
+    code-bg: "#404040"
+navbar:
+  bg: primary
+footer:
+  structure:
+    left: developed_by
+    right: [built_with, note]
+  components:
+    note: Class assignment by **Shu Luan**.
+
